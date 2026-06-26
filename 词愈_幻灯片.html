@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>词愈 —— 大语言模型、AI幻觉、阿尔兹海默症和爱</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-card: rgba(255,248,240,0.06);
+  --text-primary: #F5E6D3;
+  --text-secondary: rgba(245,230,211,0.65);
+  --accent: #D4A574;
+  --accent-dark: #8B6914;
+  --accent-glow: rgba(212,165,116,0.2);
+  --red: #ff4444;
+  --red-bg: rgba(255,68,68,0.08);
+  --warning: #ffcc44;
+  --font-display: 'Noto Serif SC', serif;
+  --font-body: 'Noto Sans SC', sans-serif;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+  font-family: var(--font-body);
+  background: #050508;
+  color: var(--text-primary);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Stage scaling - 16:9 fixed canvas */
+.deck-stage{
+  width: 1920px;
+  height: 1080px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-primary);
+  transform-origin: center center;
+}
+
+/* Noise grain overlay */
+.screen-noise{
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+}
+
+/* Slide container */
+.slides-wrapper{
+  position: absolute;
+  inset: 0;
+}
+
+.slide{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 120px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s var(--ease-out-expo);
+}
+
+.slide.active{
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Slide backgrounds */
+.slide::before{
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(212,165,116,0.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Slide number */
+.slide-num{
+  position: absolute;
+  bottom: 30px;
+  right: 50px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--accent);
+  opacity: 0.5;
+  letter-spacing: 0.15em;
+}
+
+/* Title slide */
+.title-slide h1{
+  font-family: var(--font-display);
+  font-size: 140px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-shadow: 0 0 60px var(--accent-glow);
+  letter-spacing: 0.15em;
+  margin-bottom: 20px;
+  animation: none;
+}
+.slide.active.title-slide h1{
+  animation: titleFadeIn 1.2s var(--ease-out-expo) forwards;
+}
+
+@keyframes titleFadeIn{
+  from{opacity:0;transform:translateY(40px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+.title-slide .subtitle{
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--accent);
+  letter-spacing: 0.2em;
+  margin-bottom: 50px;
+}
+
+.title-slide .tagline{
+  font-family: var(--font-body);
+  font-size: 22px;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+  line-height: 1.8;
+}
+
+.title-decoration{
+  width: 120px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  margin: 40px 0;
+}
+
+/* Section header */
+.section-label{
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--accent);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+  opacity: 0.7;
+}
+
+.slide-title{
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 32px;
+  color: var(--text-primary);
+}
+
+.slide-body{
+  font-family: var(--font-body);
+  font-size: 26px;
+  line-height: 1.9;
+  color: var(--text-secondary);
+  max-width: 1100px;
+  text-align: center;
+}
+
+/* Two column layout */
+.two-col{
+  display: flex;
+  gap: 60px;
+  width: 100%;
+  max-width: 1500px;
+  align-items: flex-start;
+}
+
+.two-col .col{
+  flex: 1;
+}
+
+.col-title{
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--accent);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(212,165,116,0.25);
+}
+
+.col-text{
+  font-family: var(--font-body);
+  font-size: 22px;
+  line-height: 1.8;
+  color: var(--text-secondary);
+}
+
+/* Highlight text */
+.highlight{color: var(--accent); font-weight: 600;}
+.highlight-red{color: var(--red); font-weight: 600;}
+.bold-text{color: var(--text-primary); font-weight: 600;}
+
+/* Card grid */
+.card-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  width: 100%;
+  max-width: 1500px;
+}
+
+.card{
+  background: var(--bg-card);
+  border: 1px solid rgba(212,165,116,0.15);
+  border-radius: 12px;
+  padding: 32px;
+  backdrop-filter: blur(12px);
+}
+
+.card-title{
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+.card-text{
+  font-family: var(--font-body);
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
+.card-red{
+  border-color: rgba(255,68,68,0.25);
+  background: var(--red-bg);
+}
+.card-red .card-title{color: var(--red);}
+
+/* Quote block */
+.quote-block{
+  background: rgba(212,165,116,0.06);
+  border-left: 4px solid var(--accent);
+  padding: 28px 36px;
+  max-width: 1000px;
+  margin: 20px 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.8;
+  color: var(--text-primary);
+  font-style: italic;
+}
+
+.quote-author{
+  font-size: 18px;
+  color: var(--accent);
+  margin-top: 12px;
+  font-style: normal;
+  text-align: right;
+}
+
+/* Dialogue conversation */
+.dialogue{
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-height: 700px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.dialogue::-webkit-scrollbar{
+  width: 4px;
+}
+.dialogue::-webkit-scrollbar-track{
+  background: transparent;
+}
+.dialogue::-webkit-scrollbar-thumb{
+  background: rgba(212,165,116,0.25);
+  border-radius: 2px;
+}
+
+.dialogue-line{
+  background: rgba(255,248,240,0.04);
+  border-radius: 10px;
+  padding: 14px 18px;
+  border-left: 3px solid var(--accent);
+  transition: background 0.3s ease;
+}
+
+.dialogue-line:hover{
+  background: rgba(212,165,116,0.08);
+}
+
+.speaker{
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+
+.speaker-zhao{
+  color: #88cc66;
+}
+
+.speaker-lin{
+  color: var(--accent);
+}
+
+.speaker-narrator{
+  color: var(--text-secondary);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.speech{
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.dialogue-origin{
+  font-family: var(--font-display);
+  font-size: 20px;
+  color: var(--accent);
+  text-align: center;
+  margin-top: 6px;
+  padding: 12px;
+  border-top: 1px solid rgba(212,165,116,0.15);
+  font-weight: 600;
+}
+
+/* Game demo placeholder */
+.demo-slot{
+  background: rgba(212,165,116,0.04);
+  border: 2px dashed rgba(212,165,116,0.35);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 1400px;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.demo-slot-icon{
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.demo-slot-label{
+  font-family: var(--font-body);
+  font-size: 20px;
+  color: var(--accent);
+  letter-spacing: 0.15em;
+  opacity: 0.6;
+}
+
+.demo-slot-hint{
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+  opacity: 0.4;
+}
+
+/* Demo video */
+.demo-video{
+  outline: none;
+  box-shadow: 0 0 40px rgba(212,165,116,0.1);
+  transition: box-shadow 0.3s ease;
+}
+
+.demo-video:hover{
+  box-shadow: 0 0 60px rgba(212,165,116,0.2);
+}
+
+.demo-video::-webkit-media-controls-panel{
+  background: rgba(10,10,15,0.85);
+}
+
+/* Code block */
+.code-block{
+  background: rgba(10,10,15,0.8);
+  border: 1px solid rgba(212,165,116,0.2);
+  border-radius: 8px;
+  padding: 20px 28px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--accent);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* Weight bar */
+.weight-demo{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-body);
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.weight-bar{
+  flex: 1;
+  height: 6px;
+  background: rgba(212,165,116,0.15);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.weight-bar-fill{
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+  border-radius: 3px;
+  transition: width 1.2s ease;
+}
+
+.weight-label{
+  font-size: 14px;
+  color: var(--accent);
+  width: 36px;
+  text-align: right;
+}
+
+/* Page indicator */
+.page-indicator{
+  position: absolute;
+  bottom: 30px;
+  left: 50px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--accent);
+  opacity: 0.5;
+  letter-spacing: 0.15em;
+  z-index: 1001;
+}
+
+/* Progress bar */
+.progress-bar{
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-dark), var(--accent));
+  z-index: 1001;
+  transition: width 0.5s ease;
+}
+
+/* Three act structure */
+.act-flow{
+  display: flex;
+  gap: 30px;
+  align-items: center;
+  max-width: 1400px;
+}
+
+.act-card{
+  flex: 1;
+  background: var(--bg-card);
+  border: 1px solid rgba(212,165,116,0.2);
+  border-radius: 12px;
+  padding: 28px 24px;
+  text-align: center;
+}
+
+.act-num{
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0.3;
+}
+
+.act-name{
+  font-family: var(--font-display);
+  font-size: 28px;
+  color: var(--text-primary);
+  margin: 8px 0;
+}
+
+.act-desc{
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.act-arrow{
+  font-size: 28px;
+  color: var(--accent);
+  opacity: 0.4;
+}
+
+/* Stats banner */
+.stats-banner{
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.stat-item{
+  text-align: center;
+}
+
+.stat-num{
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label{
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Hallucination text */
+.hallucination-display{
+  font-family: monospace;
+  font-size: 22px;
+  color: var(--red);
+  background: var(--red-bg);
+  padding: 16px 24px;
+  border-radius: 8px;
+  letter-spacing: 0.1em;
+  line-height: 1.8;
+}
+
+/* Final slide */
+.final-slide .big-quote{
+  font-family: var(--font-display);
+  font-size: 52px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  line-height: 1.5;
+  text-shadow: 0 0 40px var(--accent-glow);
+}
+
+/* Responsive scaling */
+@media (max-width: 1920px){
+  .deck-stage{
+    transform: scale(min(calc(100vw / 1920), calc(100vh / 1080)));
+  }
+}
+
+/* Keyboard hint */
+.key-hint{
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--text-secondary);
+  opacity: 0.35;
+  letter-spacing: 0.1em;
+  z-index: 1001;
+}
+</style>
+</head>
+<body>
+
+<div class="deck-stage" id="deck">
+  <div class="screen-noise"></div>
+  <div class="progress-bar" id="progress" style="width:0%"></div>
+
+  <div class="slides-wrapper">
+
+    <!-- ====== SLIDE 0: TITLE ====== -->
+    <div class="slide title-slide active" data-slide="0">
+      <div class="title-decoration"></div>
+      <h1>词 · 愈</h1>
+      <div class="subtitle">大语言模型 · AI幻觉 · 阿尔兹海默症 · 爱</div>
+      <div class="tagline">"爱，是唯一不褪色的记忆。"</div>
+      <div class="slide-num">0</div>
+    </div>
+
+    <!-- ====== SLIDE 1: 我们为什么使用AI？ ====== -->
+    <div class="slide" data-slide="1">
+      <div class="section-label">PART 1 · 人工智能的核心能力</div>
+      <div class="slide-title">我们为什么使用AI？</div>
+      <div class="slide-body">
+        身处AI时代，拥抱AI是必然的。<br>
+        但一想到用AI——编写程序？前后端工作？赶作业？生成视频？<br><br>
+        <span class="bold-text">从ChatGPT到DeepSeek到Claude Fable，AI的能力正飞速迭代。</span><br>
+        然而，<span class="highlight">并非所有人都有高生产力需求</span>——<br>
+        话语权更大的技术群体，让我们对AI作用的认知有所偏颇。
+      </div>
+      <div class="slide-num">1</div>
+    </div>
+
+    <!-- ====== SLIDE 2: 谁是AI的受益者？ ====== -->
+    <div class="slide" data-slide="2">
+      <div class="section-label">PART 1 · 人工智能的核心能力</div>
+      <div class="slide-title">谁是AI的受益者？</div>
+      <div class="stats-banner">
+        <div class="stat-item">
+          <div class="stat-num">5亿+</div>
+          <div class="stat-label">豆包月活用户<br>（来源：字节跳动2025公开发布数据）</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">60%+</div>
+          <div class="stat-label">非技术背景用户占比<br>（来源：QuestMobile 2024 AI应用报告）</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-num">TOP 1</div>
+          <div class="stat-label">中国AI应用DAU排名<br>（来源：AI产品榜 2025）</div>
+        </div>
+      </div>
+      <div class="slide-body" style="margin-top:24px;">
+        LLM、Token、CLI——这些术语酷炫但不接地气。<br>
+        <span class="highlight">服务于人类</span>不应只服务于人类的前沿，<br>
+        更应当考虑<span class="bold-text">更广泛的普罗大众</span>。
+      </div>
+      <div class="slide-num">2</div>
+    </div>
+
+    <!-- ====== SLIDE 3: 普罗大众如何用AI ====== -->
+    <div class="slide" data-slide="3">
+      <div class="section-label">PART 1 · 人工智能的核心能力</div>
+      <div class="slide-title">普罗大众如何用AI：<span class="highlight">陪伴</span></div>
+      <div class="quote-block">
+        "我会用最直白、最不绕弯子的方法告诉你。"
+        <div class="quote-author">—— 豆包的回答风格</div>
+      </div>
+      <div class="slide-body">
+        中国人对看精神科医生是羞耻的，文化要求每个人坚强。<br>
+        但AI——一个只对你忠诚、永远耐心解读问题的朋友，<br>
+        天然适合请教那些<span class="highlight">不能和别人讲的问题</span>。<br><br>
+        让父母不再对频频涌现的新名词摸不着头脑，<br>
+        让老年人出门办事不再低三下四求人操作，<br>
+        让小孩子的作业辅导不再是每个家庭的难题。<br><br>
+        <span class="bold-text">AI的核心能力不应只有更高的生产力；<br>
+        至少社会主义中国的AI必须有普惠大众的能力。</span>
+      </div>
+      <div class="slide-num">3</div>
+    </div>
+
+    <!-- ====== SLIDE 4: 词愈故事（精简） ====== -->
+    <div class="slide" data-slide="4">
+      <div class="section-label">PART 2 · 关于词愈</div>
+      <div class="slide-title">这是一个<span class="highlight">包装成人工智能</span>的关于爱的故事</div>
+      <div class="slide-num">4</div>
+    </div>
+
+    <!-- ====== SLIDE 4B: 对话 — 词愈的起源 ====== -->
+    <div class="slide" data-slide="4b">
+      <div class="section-label">PART 2 · 关于词愈</div>
+      <div class="slide-title">故事的起源：一场<span class="highlight">对话</span></div>
+      <div class="two-col">
+        <div class="col">
+          <div class="dialogue">
+            <div class="dialogue-line">
+              <span class="speaker speaker-zhao">赵川：</span>
+              <span class="speech">“你知道吗，AI的本质就是学习词语之间的关联。我们把海量文本喂给模型，让它学习词间的联系，最终我们判断它的生成是否正确，并加以改进，逐渐地模型就能够说出一句连贯的话、写出完整的文章。这个过程，和人类记忆的形成，底层逻辑可能是一样的。”</span>
+            </div>
+            <div class="dialogue-line">
+              <span class="speaker speaker-zhao">赵川：</span>
+              <span class="speech">“你父亲的记忆定格在他的中学时期——那是他学习能力最旺盛的时候。他的大脑——似乎在尽力保护着相关的回忆。所以幸运的是，他对新知识仍然有热情。如果我们不让他‘回忆’，而是让他‘学习’——把那些记忆包装成‘训练数据’，让他以‘当AI’的方式重新吸收它们……也许能绕过他的抗拒心理。”</span>
+            </div>
+            <div class="dialogue-line">
+              <span class="speaker speaker-lin">林可：</span>
+              <span class="speech">“成功的概率有多大？”</span>
+            </div>
+            <div class="dialogue-line">
+              <span class="speaker speaker-zhao">赵川：</span>
+              <span class="speech">“我不知道。但人工智能的成功，至少证明了一件事：词与词之间的联系是可以被习得的。我们认为阿尔茨海默症患者也有可能通过同样的方式，重新建立起词语之间的联系。最终是否接受这个实验，需要你的意见。”</span>
+            </div>
+            <div class="dialogue-line">
+              <span class="speaker speaker-lin">林可：</span>
+              <span class="speech">“我想让他再叫我一声女儿。”</span>
+            </div>
+            <div class="dialogue-line">
+              <span class="speaker speaker-narrator">于是他们制定了一个计划。</span>
+              <span class="speech">既然父亲不愿意接受试图回忆带来的挫败感，那就让他以新的身份来学习这些回忆——一个叫 <span class="highlight">LINK-1</span> 的人工智能。</span>
+            </div>
+            <div class="dialogue-origin">这就是这个“游戏”的起源。</div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="demo-slot" style="height:100%;min-height:650px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <video class="demo-video" src="UPLOADtoGitHubCIYu/背景故事.mp4" controls preload="metadata" style="width:100%;max-height:650px;border-radius:12px;"></video>
+          </div>
+        </div>
+      </div>
+      <div class="slide-num">4b</div>
+    </div>
+
+    <!-- ====== SLIDE 5: 三幕结构 ====== -->
+    <div class="slide" data-slide="5">
+      <div class="section-label">PART 2 · 关于词愈</div>
+      <div class="slide-title">三幕叙事结构</div>
+      <div class="act-flow">
+        <div class="act-card">
+          <div class="act-num">I</div>
+          <div class="act-name">觉醒</div>
+          <div class="act-desc">基础语义训练<br>"夏天→西瓜"<br>"家人→温暖"<br>像孩子学语一样笨拙</div>
+        </div>
+        <div class="act-arrow">→</div>
+        <div class="act-card">
+          <div class="act-num">II</div>
+          <div class="act-name">裂隙</div>
+          <div class="act-desc">记忆碎片浮现<br>"秋千""丘千"<br>幻觉开始出现<br>词语像断线的珠子</div>
+        </div>
+        <div class="act-arrow">→</div>
+        <div class="act-card">
+          <div class="act-num">III</div>
+          <div class="act-name">终局</div>
+          <div class="act-desc">记忆矫正<br>"林可是女儿"<br>幻觉消散<br>隐藏的记忆展开</div>
+        </div>
+      </div>
+      <div class="slide-body" style="margin-top:30px;">
+        一个春天的下午，阳光很好。<br>
+        一个男人在院子里教一个小女孩骑车——<br>
+        <span class="highlight">"爸，我害怕。" "别怕，爸爸在。"</span>
+      </div>
+      <div class="slide-num">5</div>
+    </div>
+
+
+    <!-- ====== SLIDE 7: 核心设计1 - AI概率预测 ====== -->
+    <div class="slide" data-slide="7">
+      <div class="section-label">PART 3 · 核心设计</div>
+      <div class="slide-title">一、人工智能 —— 用<span class="highlight">概率预测模型</span>说话</div>
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">📖 概念说明</div>
+          <div class="col-text">
+            LLM本质上是<span class="highlight">"下一个词预测器"</span>（next-token prediction）。<br>
+            给定上文，计算每个候选词的出现概率，选择最高概率的输出。<br><br>
+            <span class="bold-text">现实案例：</span><br>
+            GPT-4训练数据约<span class="highlight">13万亿token</span>，通过自注意力机制学习词间关联。你输入"今天天气真"→模型计算"好"(72%), "热"(15%), "差"(8%)→输出"好"。
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">🎮 游戏对应处理</div>
+          <div class="col-text">
+            玩家扮演LINK-1，从候选词中<span class="highlight">选择最合理的下一个词</span>。<br><br>
+            <span class="bold-text">WeightMatrix类实现：</span><br>
+            <div class="code-block">learn(a, b, w)   // 记录词对权重
+strengthen(a,b,inc) // 强化关联
+getWeight(a,b)      // 查询关联强度</div>
+            系统日志实时显示：<br>
+            <span style="color:#88cc66;">[网络统计] 总关联: 25 | 强关联: 8 | 弱关联: 5</span>
+          </div>
+        </div>
+      </div>
+      <div class="slide-num">7</div>
+    </div>
+
+    <!-- ====== SLIDE 8: 实机演示2 - 训练模式 ====== -->
+    <div class="slide" data-slide="8">
+      <div class="section-label">🎮 实机演示</div>
+      <div class="slide-title">训练模式与咨询对话 —— 游戏实机演示</div>
+      <div class="demo-slot" style="position:relative;">
+        <video id="vidWeight" class="demo-video" src="UPLOADtoGitHubCIYu/权重训练.mp4" controls preload="metadata" style="width:100%;max-height:600px;border-radius:12px;"></video>
+        <video id="vidConsult" class="demo-video" src="UPLOADtoGitHubCIYu/咨询内容.mp4" controls preload="metadata" style="width:100%;max-height:600px;border-radius:12px;display:none;"></video>
+        <div id="consultHint" style="display:none;font-family:var(--font-body);font-size:18px;color:var(--accent);margin-top:8px;">▼ 权重训练已结束，正在播放咨询对话 ▼</div>
+      </div>
+      <script>
+        document.getElementById('vidWeight').addEventListener('ended', function(){
+          this.style.display = 'none';
+          document.getElementById('consultHint').style.display = 'block';
+          const v = document.getElementById('vidConsult');
+          v.style.display = 'block';
+          v.play();
+        });
+      </script>
+      <div class="slide-num">8</div>
+    </div>
+
+    <!-- ====== SLIDE 9: 核心设计2 - 训练反馈 ====== -->
+    <div class="slide" data-slide="9">
+      <div class="section-label">PART 3 · 核心设计</div>
+      <div class="slide-title" style="font-size:48px;">大语言模型的训练 —— 用<span class="highlight">反馈</span>提高输出质量</div>
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">📖 现实中如何做</div>
+          <div class="col-text">
+            大语言模型的训练并非一次成型，而是通过<span class="highlight">海量反馈循环</span>不断优化：<br><br>
+            <span class="bold-text">① 预训练：</span>模型在海量文本上学习词间的统计规律。<br><br>
+            <span class="bold-text">② 指令微调（SFT）：</span>用人工标注的高质量问答对，让模型学会遵循指令。<br><br>
+            <span class="bold-text">③ 强化学习（RLHF）：</span>人类对模型输出排序打分——<br>
+            奖励有用/无害的回答，<span class="highlight-red">惩罚有害/幻觉内容</span>。<br><br>
+            <span style="color:var(--text-secondary);">每一次错误输出被纠正，都相当于一次<span class="highlight">"权重更新"</span>——<br>正确路径的权重升高，错误路径的权重降低。</span>
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">🎮 游戏中的对应</div>
+          <div class="col-text">
+            游戏中，这个流程被简化为：<br><br>
+            <span class="bold-text">1. 玩家选择</span> → 从候选词中选一个<br>
+            <span class="bold-text">2. 系统反馈</span> → 正确则强化权重，错误则显示提示<br>
+            <span class="bold-text">3. 重新选择</span> → 玩家换一个选项再次尝试<br>
+            <span class="bold-text">4. 权重记录</span> → 系统日志实时更新关联强度<br><br>
+            <span style="color:var(--text-secondary);">每一次<span class="highlight">"试错—纠正—确认"</span>，<br>都是LINK-1的"梯度下降"。</span>
+          </div>
+        </div>
+      </div>
+      <div class="slide-num">9</div>
+    </div>
+
+    <!-- ====== SLIDE 10: 实机演示3 - 错误纠正 ====== -->
+    <div class="slide" data-slide="10">
+      <div class="section-label">🎮 实机演示</div>
+      <div class="slide-title">出错后的纠正与重复 —— 游戏实机演示</div>
+      <div class="demo-slot" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <video class="demo-video" src="UPLOADtoGitHubCIYu/错误重复.mp4" controls preload="metadata" style="width:100%;max-height:600px;border-radius:12px;"></video>
+      </div>
+      <div class="slide-num">10</div>
+    </div>
+
+    <!-- ====== SLIDE 11: 核心设计3 - AI幻觉 ====== -->
+    <div class="slide" data-slide="11">
+      <div class="section-label">PART 3 · 核心设计</div>
+      <div class="slide-title">二、人工智能幻觉 —— 因为数据而做的<span class="highlight-red">AI之梦</span></div>
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">📖 概念说明</div>
+          <div class="col-text">
+            AI在低概率区域采样时，可能生成<span class="highlight-red">看似合理实则虚构</span>的输出。<br><br>
+            <span class="bold-text">现实案例：</span><br>
+            • <span class="highlight-red">Google Bard</span> 首次演示中错误声称詹姆斯·韦伯望远镜拍摄了首张系外行星照片（实际是欧洲南方天文台拍摄的），Alphabet股价当日下跌<span class="highlight-red">7.7%</span>。<br>
+            • <span class="highlight-red">ChatGPT</span> 曾"编造"不存在的法律案例和学术论文引用——律师在法庭文件中引用了ChatGPT生成的虚构判例。
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">🎮 游戏对应处理</div>
+          <div class="col-text">
+            游戏中两个核心幻觉事件：<br><br>
+            <span class="highlight-red">秋千幻觉 (H_SWING)：</span><br>
+            <div class="hallucination-display">会→他→会→开→心→？→因→为→丘→千→有→林→可→→</div>
+            <span style="font-size:16px;color:var(--text-secondary);">"秋千"扭曲为"丘千"——低概率采样的典型表现</span><br><br>
+            <span class="highlight-red">名字幻觉 (H_NAME)：</span><br>
+            <div class="hallucination-display">重→要→非→长→重→Y→？→林→可→树→林→的→Lin</div>
+          </div>
+        </div>
+      </div>
+      <div class="slide-num">11</div>
+    </div>
+
+    <!-- ====== SLIDE 12: 实机演示4 - 幻觉事件 ====== -->
+    <div class="slide" data-slide="12">
+      <div class="section-label">🎮 实机演示</div>
+      <div class="slide-title">第二幕：裂隙 —— 幻觉事件实机演示</div>
+      <div class="demo-slot" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <video class="demo-video" src="UPLOADtoGitHubCIYu/幻觉名字.mp4" controls preload="metadata" style="width:100%;max-height:600px;border-radius:12px;"></video>
+      </div>
+      <div class="slide-num">12</div>
+    </div>
+
+    <!-- ====== SLIDE 13: 核心设计4 - 阿尔兹海默症 ====== -->
+    <div class="slide" data-slide="13">
+      <div class="section-label">PART 3 · 核心设计</div>
+      <div class="slide-title">三、阿尔兹海默症 —— 当<span class="highlight">神经元变成大脑的孤岛</span></div>
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">📖 概念说明</div>
+          <div class="col-text">
+            阿尔兹海默症的病理核心，是两种异常蛋白质在大脑中的<span class="highlight-red">沉积与破坏</span>：<br><br>
+            <span class="bold-text">① β-淀粉样蛋白（Aβ）</span>—— 像"错误的黏合剂"，在神经元之间聚集成<span class="highlight-red">老年斑</span>，<br>物理阻挡信号传递，并激活免疫反应攻击周围神经元。<br><br>
+            <span class="bold-text">② Tau蛋白</span>—— 本是神经元内部的"骨架支撑"，异常磷酸化后缠结成<span class="highlight-red">神经纤维缠结</span>，<br>使神经元内部的营养运输通道瘫痪，细胞逐渐饿死。<br><br>
+            两者联手，从<span class="highlight">海马体</span>（记忆中枢）开始蔓延至整个皮层。<br>
+            突触大规模丢失，大脑萎缩，皮质变薄——<br>
+            最终，<span class="highlight-red">神经元的网络变成无法通信的孤岛</span>。
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">🎮 游戏对应处理</div>
+          <div class="col-text">
+            <span class="bold-text">decay() 方法模拟突触退化：</span><br>
+            <div class="code-block">decay() {
+  for(每个关联){
+    if(30%概率) 权重 -= 10;
+    // 下限为10
+  }
+}</div>
+            第二幕训练"2-4"后触发衰减——<br>
+            <span class="highlight-red">"▓▓▓ 关联丢失 ▓▓▓"</span><br>
+            <span class="highlight-red">"错误代码：LINK-1 语义退化"</span><br><br>
+            训练内容映射：<br>
+            <span style="color:var(--text-secondary);">记忆→模糊→雾→看不清→恐惧→失去</span><br>
+            <span style="color:var(--text-secondary);">父亲→背影→远去→告别→眼泪→成长</span>
+          </div>
+        </div>
+      </div>
+      <div class="slide-num">13</div>
+    </div>
+
+    <!-- ====== SLIDE 14: 核心设计5 - 亲情 ====== -->
+    <div class="slide" data-slide="14">
+      <div class="section-label">PART 3 · 核心设计</div>
+      <div class="slide-title">四、亲情 —— <span class="highlight">超越记忆的能力</span></div>
+      <div class="two-col">
+        <div class="col">
+          <div class="col-title">📖 概念说明</div>
+          <div class="col-text">
+            <span class="bold-text">情感记忆比事实记忆存续更久。</span><br>
+            杏仁核在疾病早期相对完好——<br>
+            患者记不住名字，但感受得到"这个人让我安全"。<br><br>
+            <span class="bold-text">现实案例：</span><br>
+            医学文献记载：一位记不住女儿名字的母亲，会在女儿哭泣时伸手抚摸她的脸；一位无法对话的父亲，听到孙子笑声时会露出微笑。<br><br>
+            → <span class="highlight">某些权重被赋予了极高初始值</span>，<br>在整体衰减时仍保持显著性。<br>
+            → 这种"高权重连接"构成了对抗遗忘的<span class="highlight">最后防线</span>。
+          </div>
+        </div>
+        <div class="col">
+          <div class="col-title">🎮 游戏对应处理</div>
+          <div class="col-text">
+            <span class="bold-text">权重100的最终守护：</span><br>
+            <div class="code-block">林→可 (weight:100)
+  可→是 (weight:100)
+  是→女 (weight:100)
+  女→儿 (weight:100)
+  儿→。 (weight:100)</div>
+            错误选项权重为<span class="highlight-red">0</span>——<br>确保唯一步向"林可是女儿。"<br><br>
+            <span class="bold-text">"选择即意义"：</span><br>
+            终局乱码选项——玩家<span class="highlight">无需判断"正确"</span>，<br>
+            选任一都会推进。<br>
+            <span class="highlight">选择的行为本身</span>，<br>而非选择的内容，才是修复记忆的关键。
+          </div>
+        </div>
+      </div>
+      <div class="slide-num">14</div>
+    </div>
+
+    <!-- ====== SLIDE 15: 实机演示5 - 终局 ====== -->
+    <div class="slide" data-slide="15">
+      <div class="section-label">🎮 实机演示</div>
+      <div class="slide-title">第三幕：终局 ——"林可是女儿"拼合实机演示</div>
+      <div class="demo-slot" style="display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <video class="demo-video" src="UPLOADtoGitHubCIYu/拼字林可.mp4" controls preload="metadata" style="width:100%;max-height:600px;border-radius:12px;"></video>
+      </div>
+      <div class="slide-num">15</div>
+    </div>
+
+    <!-- ====== SLIDE 16: 结语 ====== -->
+    <div class="slide final-slide" data-slide="16">
+      <div class="section-label">结语</div>
+      <div class="big-quote">
+        "爱，是唯一不褪色的记忆。"
+      </div>
+      <div class="title-decoration" style="margin:40px 0;"></div>
+      <div class="slide-body">
+        《词愈》不仅仅是一个游戏。<br>
+        它是一个关于<span class="highlight">记忆、爱与遗忘</span>的互动寓言。<br><br>
+        有些记忆并不是"不记得了"，<br>
+        而是大脑缺失了<span class="highlight">调用这份记忆的联系</span>。<br><br>
+        高权重的关联——被反复强化、被赋予情感价值的连接——<br>
+        构成了我们之所以为<span class="bold-text">"我们"</span>的核心。<br><br>
+        <span class="highlight">当连接因疾病而断裂时，<br>爱——作为最深层的生物编码——<br>是唯一能够重新激活它们的信号。</span>
+      </div>
+      <div class="slide-num">16</div>
+    </div>
+
+  </div>
+
+  <div class="page-indicator" id="pageIndicator">1 / 17</div>
+  <div class="key-hint">← → 或滚轮翻页 · 空格/回车翻页</div>
+</div>
+
+<script>
+class SlidePresentation {
+  constructor() {
+    this.slides = document.querySelectorAll('.slide');
+    this.total = this.slides.length;
+    this.current = 0;
+    this._bindEvents();
+    this._updateUI();
+  }
+
+  _bindEvents() {
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+        e.preventDefault();
+        this.next();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        this.prev();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        this.goTo(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        this.goTo(this.total - 1);
+      }
+    });
+
+    let wheelTimeout;
+    document.addEventListener('wheel', (e) => {
+      if (wheelTimeout) return;
+      wheelTimeout = setTimeout(() => { wheelTimeout = null; }, 800);
+      if (e.deltaY > 0) this.next();
+      else if (e.deltaY < 0) this.prev();
+    }, { passive: true });
+
+    // Touch support
+    let touchStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+    });
+    document.addEventListener('touchend', (e) => {
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dy) > 50) {
+        if (dy < 0) this.next();
+        else this.prev();
+      }
+    });
+  }
+
+  next() {
+    if (this.current < this.total - 1) {
+      this.goTo(this.current + 1);
+    }
+  }
+
+  prev() {
+    if (this.current > 0) {
+      this.goTo(this.current - 1);
+    }
+  }
+
+  goTo(index) {
+    this.slides[this.current].classList.remove('active');
+    this.current = index;
+    this.slides[this.current].classList.add('active');
+    this._updateUI();
+  }
+
+  _updateUI() {
+    document.getElementById('pageIndicator').textContent = 
+      (this.current + 1) + ' / ' + this.total;
+    document.getElementById('progress').style.width = 
+      ((this.current + 1) / this.total * 100) + '%';
+  }
+}
+
+// Stage scaling
+function scaleStage() {
+  const stage = document.getElementById('deck');
+  const scaleX = window.innerWidth / 1920;
+  const scaleY = window.innerHeight / 1080;
+  const scale = Math.min(scaleX, scaleY);
+  stage.style.transform = `scale(${scale})`;
+}
+
+window.addEventListener('resize', scaleStage);
+scaleStage();
+
+new SlidePresentation();
+</script>
+</body>
+</html>
