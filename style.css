@@ -31,13 +31,14 @@ body{font-family:'Noto Serif SC',serif;background:#0a0a0f;color:#F5E6D3;min-heig
 
 /* Title screen */
 #title-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;background:linear-gradient(135deg,#1a0f05 0%,#2c1810 40%,#3d1f10 60%,#1a0f05 100%);}
-#title-screen h1{font-size:5rem;font-weight:700;letter-spacing:0.5em;margin-bottom:0.5rem;background:linear-gradient(135deg,#F5E6D3,#D4A574,#F5E6D3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:none;animation:titleGlow 3s ease-in-out infinite;}
+#title-bg-container{position:absolute;inset:0;z-index:0;}
+#title-screen h1{position:relative;z-index:1;font-size:5rem;font-weight:700;letter-spacing:0.5em;margin-bottom:0.5rem;background:linear-gradient(135deg,#F5E6D3,#D4A574,#F5E6D3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;text-shadow:none;animation:titleGlow 3s ease-in-out infinite;}
 @keyframes titleGlow{0%,100%{filter:drop-shadow(0 0 20px rgba(212,165,116,0.4))}50%{filter:drop-shadow(0 0 40px rgba(212,165,116,0.8))}}
-#title-screen .subtitle{font-size:1.4rem;color:#D4A574;letter-spacing:0.3em;margin-bottom:4rem;font-weight:300;}
-#title-screen .tagline{font-size:1.1rem;color:rgba(212,165,116,0.6);letter-spacing:0.2em;margin-bottom:3rem;}
-#start-btn{background:linear-gradient(135deg,rgba(212,165,116,0.3),rgba(212,165,116,0.1));border:1px solid rgba(212,165,116,0.5);color:#F5E6D3;padding:1rem 4rem;font-size:1.3rem;font-family:'Noto Serif SC',serif;cursor:pointer;border-radius:8px;letter-spacing:0.3em;transition:all 0.3s ease;position:relative;overflow:hidden;}
+#title-screen .subtitle{position:relative;z-index:1;font-size:1.4rem;color:#D4A574;letter-spacing:0.3em;margin-bottom:4rem;font-weight:300;}
+#title-screen .tagline{position:relative;z-index:1;font-size:1.1rem;color:rgba(212,165,116,0.6);letter-spacing:0.2em;margin-bottom:3rem;}
+#start-btn{position:relative;z-index:1;background:linear-gradient(135deg,rgba(212,165,116,0.3),rgba(212,165,116,0.1));border:1px solid rgba(212,165,116,0.5);color:#F5E6D3;padding:1rem 4rem;font-size:1.3rem;font-family:'Noto Serif SC',serif;cursor:pointer;border-radius:8px;letter-spacing:0.3em;transition:all 0.3s ease;overflow:hidden;}
 #start-btn:hover{background:linear-gradient(135deg,rgba(212,165,116,0.5),rgba(212,165,116,0.3));box-shadow:0 0 30px rgba(212,165,116,0.3);transform:scale(1.05);}
-#title-screen .click-hint{position:absolute;bottom:3rem;font-size:0.9rem;color:rgba(245,230,211,0.4);letter-spacing:0.2em;animation:pulse 2s ease-in-out infinite;}
+#title-screen .click-hint{position:absolute;z-index:1;bottom:3rem;font-size:0.9rem;color:rgba(245,230,211,0.4);letter-spacing:0.2em;animation:pulse 2s ease-in-out infinite;}
 @keyframes pulse{0%,100%{opacity:0.4}50%{opacity:0.8}}
 
 /* Act header */
@@ -118,7 +119,7 @@ body{font-family:'Noto Serif SC',serif;background:#0a0a0f;color:#F5E6D3;min-heig
 .ending-title.visible{opacity:1;}
 .ending-game-over{font-size:2.5rem;color:#D4A574;letter-spacing:0.5em;margin:2rem 0;}
 
-/* Revelation scene */
+/* Radar Chart — 六维雷达图，居中显示，Excel 样式 */\n#radar-chart-container {\n  position: fixed;\n  top: 50%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  z-index: 25;\n  opacity: 0;\n  transition: opacity 0.6s ease;\n  pointer-events: none;\n  background: rgba(10, 5, 2, 0.3);\n  backdrop-filter: blur(8px);\n  -webkit-backdrop-filter: blur(8px);\n  border: none;\n  border-radius: 12px;\n  padding: 0.8rem 0.8rem 0.4rem;\n  width: auto;\n  text-align: center;\n}\n#radar-chart-container.active {\n  opacity: 1;\n}\n.radar-title {\n  font-size: 0.8rem;\n  color: rgba(212, 165, 116, 0.4);\n  letter-spacing: 0.15em;\n  margin-bottom: 0.2rem;\n  font-weight: 300;\n}\n#radar-chart-canvas {\n  width: 180px;\n  height: 180px;\n  margin: 0 auto;\n  display: block;\n}\n.radar-legend {\n  display: none;\n}\n\n/* Revelation scene */
 #revelation-overlay{position:absolute;inset:0;z-index:150;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:3rem;}
 #revelation-overlay.active{display:flex;}
 
