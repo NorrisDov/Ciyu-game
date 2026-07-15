@@ -1,5 +1,5 @@
 
-const ASSETS = {"bg_hospital": "assets/img_1.jpg", "bg_park": "assets/img_2.jpg", "bg_stove": "assets/img_3.jpg", "bg_room": "assets/img_8.jpg", "bg_training": "assets/img_4.jpg", "char_father": "assets/img_5.png", "char_linke": "assets/img_6.png", "char_zhaochuan": "assets/img_7.png", "char_linkeB": "assets/img_9.png"};
+const ASSETS = {"bg_hospital": "assets/img_1.jpg", "bg_park": "assets/img_2.jpg", "bg_stove": "assets/img_3.jpg", "bg_room": "assets/img_8.jpg", "bg_training": "assets/img_4.jpg", "char_father": "assets/img_5.png", "char_linke": "assets/img_6.png", "char_zhaochuan": "assets/img_7.png", "char_linkeB": "assets/img_9.png", "hidden1": "assets/hidden_1.jpeg", "hidden2": "assets/hidden_2.jpeg", "hidden3": "assets/hidden_3.jpeg", "hidden4": "assets/hidden_4.jpeg"};
 
 // ============================================================
 // AUDIO MANAGER (placeholder)
@@ -994,12 +994,27 @@ class CiyuGame {
     
     this.clearDialog();
     this.showSpellingArea(true);
-    
+    // 显式复位 choice-grid 的 display（防 revelation/幻觉段遗留 display:none）
+    document.getElementById('choice-grid').style.display = '';
+
+    // [DEBUG] 诊断终局拼字区是否就绪
+    {
+      const sa = document.getElementById('spelling-area');
+      const cg = document.getElementById('choice-grid');
+      console.log('[Final] spelling-area active?', sa.classList.contains('active'),
+        '| computed opacity:', getComputedStyle(sa).opacity,
+        '| choice-grid display:', getComputedStyle(cg).display);
+    }
+
     let built = starter;
     
     for (let i = 0; i < steps.length; i++) {
       const step = steps[i];
-      
+
+      // 每步开始都显式确保拼写区可见、选项区未被隐藏
+      this.showSpellingArea(true);
+      document.getElementById('choice-grid').style.display = '';
+
       // Update built display
       const builtChars = document.getElementById('built-chars');
       builtChars.innerHTML = '';
@@ -1093,16 +1108,41 @@ class CiyuGame {
     this.showSpellingArea(false);
     this.hideChars();
 
-    // Hidden ending
+    // Hidden ending —— 带背景图叠化切换
     const overlay = document.getElementById('ending-overlay');
     overlay.className = 'hidden-end';
     overlay.classList.add('active');
     overlay.style.display = 'flex';
-    
+
+    // 背景图切换 helper：active 在 img_a/img_b 之间交替，实现叠化（CSS transition 1.2s）
+    const setEndingBg = (key) => {
+      const imgA = document.getElementById('ending-bg-a');
+      const imgB = document.getElementById('ending-bg-b');
+      if (!ASSETS[key]) return;
+      // 当前 active 的 img 先失活，另一张设为新的 src 再 activate
+      const aActive = imgA.classList.contains('active');
+      if (aActive) {
+        imgB.src = ASSETS[key];
+        imgA.classList.remove('active');
+        imgB.classList.add('active');
+      } else {
+        imgA.src = ASSETS[key];
+        imgB.classList.remove('active');
+        imgA.classList.add('active');
+      }
+    };
+
+    // hidden1：一开始就出现
+    setEndingBg('hidden1');
     const linesEl = document.getElementById('ending-lines');
     linesEl.innerHTML = '';
-    
+
     for (const line of ending.hidden) {
+      // 按文本匹配切换背景
+      if (line === '  \"爸，我怕。\"') setEndingBg('hidden2');
+      else if (line === '  \"可可不哭，爸爸教你。\"') setEndingBg('hidden3');
+      else if (line === '  那天下午——') setEndingBg('hidden4');
+
       const d = document.createElement('div');
       d.className = 'ending-line';
       d.textContent = line;
