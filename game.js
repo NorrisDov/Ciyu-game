@@ -69,6 +69,22 @@ class CiyuGame {
   hideChars() {
     document.getElementById('chars-layer').innerHTML = '';
   }
+
+  // 预加载 ASSETS 中所有图片到浏览器缓存，避免用到时才加载导致出不来。
+  // 不阻塞：返回 Promise，调用处可不 await，让其在后台与画面过渡并行进行。
+  preloadAssets() {
+    if (this._assetsPreloaded) return Promise.resolve();
+    this._assetsPreloaded = true;
+    const urls = Object.values(ASSETS).filter(Boolean);
+    const cache = this._assetCache || (this._assetCache = {});
+    return Promise.all(urls.map(src => new Promise(resolve => {
+      if (cache[src]) { resolve(); return; }
+      const img = new Image();
+      img.onload = () => { cache[src] = true; resolve(); };
+      img.onerror = () => { resolve(); };  // 单张失败也不阻断
+      img.src = src;
+    })));
+  }
   
   setDialogLines(lines) {
     const box = document.getElementById('dialog-box');
@@ -251,8 +267,9 @@ class CiyuGame {
     this.clearDialog();
     this.hideChars();
     this.showActHeader('第一幕：觉醒');
+    // 喜-1 即将开始：趁幕标题淡出的 2.6s 窗口在后台预加载所有 assets 图片
+    this.preloadAssets();
     await this.sleep(2600);  // 等待幕标题完全淡出后再开始
-    
     // 六维训练（喜·暖·念·悲·惧·寂）— 来自 data.py / GAME_DATA
     const act1Train = window.GAME_DATA.ACT1_TRAIN;
     for (const t of act1Train) {
